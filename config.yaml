@@ -1,0 +1,15 @@
+form_data:
+    username:  12306账号   #12306账号
+    password:  12306密码   #12306密码
+    appid: otn
+
+ticket_info:
+    train_date:      2019-02-18       #乘车日期
+    from_station: 岳阳                    #起始站
+    to_station:      深圳                   #终点站
+    train_times:    12:00-23:00       #购票时间段以-隔开
+    seat_type:      二等座                #座位类型，为方便，暂时只支持一种类型
+    passengers:   乘车人                #乘车人，为区别中英文符号，以空格隔开
+
+email_address: 
+  - '邮箱'           #设置邮箱提醒
