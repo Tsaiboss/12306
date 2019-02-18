@@ -10,21 +10,13 @@ import requests
 from urllib import parse
 from send_email import sendEmail
 
-def get_stations():
-    """站点转换信息"""
+def get_file_info(file):
     dirname   = os.path.dirname(__file__)
-    file = os.path.join(dirname,"stations.json")
-    with open(file,'r',encoding = "utf-8") as json_file:
-        stations = json.load(json_file)
-        return stations
-
-def get_config_info():
-    """获取配置信息"""
-    dirname   = os.path.dirname(__file__)
-    file = os.path.join(dirname,"config.yaml")
-    with open(file,'r',encoding = 'gbk') as fp:
-        yaml_data = yaml.load(fp)
-    return yaml_data
+    file = os.path.join(dirname,file)
+    load_func = [json.load,yaml.load][file.endswith('.yaml')]
+    with open(file,'r',encoding = "utf-8") as fp:
+        datas = load_func(fp)
+    return datas
 
 def get_point_360(imgbase64):
     """调用第三方识别验证码，返回验证码坐标"""
@@ -74,8 +66,7 @@ class BuyTicket(object):
 
         response = self.session.get(captcha_url,params = params,headers = self.headers)
         try:
-            data = response.json()
-            img_base64 = data['image']
+            img_base64 = response.json()['image']
         except:
             print ("验证码获取失败!")
             return False
@@ -104,13 +95,13 @@ class BuyTicket(object):
         form_data = self.config['form_data']
         response = self.session.post(login_url, data = form_data,headers = self.headers)
         res = response.json()
-        if res["result_code"] != 0:
+        if res["result_code"]:
             print ('登录失败!')
             return
         uamtk_url = 'https://kyfw.12306.cn/passport/web/auth/uamtk'
         response = self.session.post(uamtk_url, data={'appid': 'otn'})
         res = response.json()
-        if res["result_code"] != 0:
+        if res["result_code"]:
             print ('认证失败!')
             return
 
@@ -126,15 +117,13 @@ class BuyTicket(object):
         login_state_url = 'https://kyfw.12306.cn/otn/login/checkUser'
         jsondata = self.session.post(login_state_url,headers = self.headers,data = {"_json_att":'',})
         try:
-            data = jsondata.json()['data']
-            flag = data['flag']
-            return flag
+            return jsondata.json()['data']['flag']
         except:
             return False
 
     def getleftTickets(self,stations,train_date,from_station,to_station):
         """余票查询"""
-        query_url   = 'https://kyfw.12306.cn/otn/leftTicket/queryZ'
+        query_url   = 'https://kyfw.12306.cn/otn/leftTicket/queryX'
         Ticket_data = {
             "leftTicketDTO.train_date":  train_date,
             "leftTicketDTO.from_station":from_station,
@@ -146,7 +135,7 @@ class BuyTicket(object):
                 'Referer': 'https://kyfw.12306.cn/otn/leftTicket/init',
                 'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
                 }
-        data = self.session.get(query_url,params = Ticket_data,headers = headers)
+        data = requests.get(query_url,params = Ticket_data,headers = headers)
      
         if data is None:
             print ("访问异常!")
@@ -309,8 +298,7 @@ class BuyTicket(object):
             count = html_count['data']['ticket']
             print(f'此座位类型还有余票{count}张。')
         else:
-            print('查看余票数量失败!')
-            print(html_count['messages'])
+            print(f"查看余票数量失败!\n{html_count['messages']}")
         return html_count['status']
     
             
@@ -355,8 +343,7 @@ class BuyTicket(object):
         confirm_url = 'https://kyfw.12306.cn/otn/confirmPassenger/confirmSingleForQueue'
         html_confirm = self.session.post(confirm_url, data=form, headers=self.headers).json()
         try:
-            data = html_confirm['data']
-            errMsg = data['errMsg']
+            errMsg = html_confirm['data']['errMsg']
             print(errMsg)
             return False
         except:
@@ -377,8 +364,8 @@ class BuyTicket(object):
 
         
 if __name__ == "__main__":
-    stations      = get_stations()
-    config        = get_config_info()
+    stations      = get_file_info('stations.json')
+    config        = get_file_info('config.yaml')
     train_date    = config['ticket_info']['train_date']
     from_station  = stations[config['ticket_info']['from_station']]
     to_station    = stations[config['ticket_info']['to_station']]
@@ -416,8 +403,7 @@ if __name__ == "__main__":
                 orderId =  WaitTime['data']['orderId']
                 if orderId:
                     print (f'恭喜!订票成功,订单号:{orderId}!请前往12306网站付款!')
-                    receivers = config['email_address']
-                    sendEmail(receivers)
+                    sendEmail(config['email_address'])
                     break
                 else:
                     if WaitTime['messages']:
